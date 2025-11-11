@@ -36,8 +36,14 @@ dependencies:
   cupertino_icons: ^1.0.8
   http: ^1.1.0
   dio: ^5.4.0
+
   get: ^4.6.6
   shared_preferences: ^2.2.2
+  hive: ^2.2.3 # Pastikan versi terbaru
+  hive_flutter: ^1.1.0 # Pastikan versi terbaru
+  path_provider: ^2.1.1 # Untuk mendapatkan path 
+  uuid: ^4.1.0 # Pastikan versi terbaru
+  intl: ^0.18.1
 
 dev_dependencies:
   flutter_test:
@@ -49,6 +55,9 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+
+  hive_generator: ^2.0.1 # Pastikan versi terbaru
+  build_runner: ^2.4.6 # Pastikan versi terbaru 
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

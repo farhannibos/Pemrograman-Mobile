@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../controllers/home_controller.dart';
-import '/app/services/theme_service.dart'; // Import ThemeService
+import '../controllers/home_controller.dart'; // Jika ada
+import '/app/services/theme_service.dart';
+import '/app/routes/app_routes.dart'; // Import AppRoutes
 
-class HomeView extends GetView<HomeController> {
+class HomeView extends GetView<HomeController> { // Atau StatelessWidget jika tanpa HomeController
   const HomeView({Key? key}) : super(key: key);
   @override
   Widget build(BuildContext context) {
-    // Dapatkan instance ThemeService
     final ThemeService themeService = Get.find<ThemeService>();
 
     return Scaffold(
@@ -18,16 +18,12 @@ class HomeView extends GetView<HomeController> {
         actions: [
           IconButton(
             icon: Icon(
-              // Tampilkan ikon berdasarkan tema saat ini
               themeService.themeMode == ThemeMode.dark 
                   ? Icons.light_mode 
                   : Icons.dark_mode,
             ),
             onPressed: () {
-              // Panggil switchTheme untuk mengganti tema
               themeService.switchTheme();
-              // Opsional: Perbarui UI secara manual jika tidak menggunakan Obx untuk tema
-              // Get.forceAppUpdate(); // Bisa menyebabkan reload seluruh aplikasi
             },
           ),
         ],
@@ -43,12 +39,12 @@ class HomeView extends GetView<HomeController> {
             SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
-                // Contoh navigasi ke halaman lain
-                // Get.toNamed(Routes.PRAYER_TIMES);
+                // Navigasi ke halaman event
+                Get.toNamed(Routes.EVENTS);
               },
-              child: Text('Lihat Jadwal Sholat'),
+              child: Text('Lihat Acara Masjid (Hive)'),
             ),
-            // Anda bisa menambahkan widget lain di sini
+            // ... widget lainnya
           ],
         ),
       ),
