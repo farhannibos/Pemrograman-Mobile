@@ -1,43 +1,49 @@
-// lib/app/modules/home/views/home_view.dart
+// lib/app/modules/home/views/home_view.dart (Hanya bagian AppBar yang diubah)
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:masjid_ku/app/modules/home/controllers/home_controller.dart';
-import 'package:masjid_ku/app/modules/settings/providers/theme_provider.dart';
-import 'package:masjid_ku/app/routes/app_routes.dart';
 import 'package:masjid_ku/core/constants/app_strings.dart';
+import 'package:masjid_ku/app/modules/settings/providers/theme_provider.dart';
+import 'package:masjid_ku/app/modules/auth/controllers/auth_controller.dart'; // <-- Import AuthController
+import 'package:masjid_ku/app/routes/app_routes.dart'; // Import Routes
 
 class HomeView extends GetView<HomeController> {
-  const HomeView({super.key});
+  const HomeView({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Get.find<ThemeProvider>(); 
+    final AuthController authController = Get.find<AuthController>(); // <-- Dapatkan AuthController
+
     return Scaffold(
       appBar: AppBar(
-        title: Get.isRegistered<ThemeProvider>()
-            ? Obx(() {
-                // Pastikan kita selalu mengakses observable variable di dalam Obx
-                final themeProvider = Get.find<ThemeProvider>();
-                final themeStatus = themeProvider.isDarkMode.value
-                    ? 'Gelap'
-                    : 'Terang';
-                return Text('${AppStrings.homeTitle} ($themeStatus)');
-              })
-            : Text(AppStrings.homeTitle),
+        title: Obx(() => Text(
+          '${AppStrings.homeTitle} (${themeProvider.isDarkMode.value ? 'Gelap' : 'Terang'})',
+        )),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () => controller.goToSettings(), // Navigasi ke Settings
+            onPressed: () => controller.goToSettings(),
           ),
+          Obx(() { // <-- Obx untuk bereaksi terhadap status login
+            if (authController.user.value != null) {
+              return IconButton(
+                icon: const Icon(Icons.logout),
+                onPressed: () => authController.logout(), // <-- Tombol Logout
+              );
+            }
+            return const SizedBox.shrink(); // Sembunyikan tombol logout jika belum login
+          }),
         ],
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              'Selamat datang di MasjidKu!',
-              style: TextStyle(fontSize: 24),
-            ),
+            Obx(() => Text( // Tampilkan info user jika login
+              authController.user.value != null ? 'Anda login sebagai: ${authController.user.value?.email}' : 'Anda belum login.',
+              style: TextStyle(fontSize: 18, color: Get.theme.textTheme.bodyMedium?.color),
+            )),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () => controller.goToSettings(),
@@ -48,9 +54,8 @@ class HomeView extends GetView<HomeController> {
               onPressed: () => Get.toNamed(Routes.PENGAJIAN_SCHEDULES),
               child: const Text('Lihat Jadwal Pengajian (Lokal)'),
             ),
-            const SizedBox(height: 10), // Spasi antar tombol
+            const SizedBox(height: 10),
             ElevatedButton(
-              // <-- Tambahkan tombol ini
               onPressed: () => Get.toNamed(Routes.KHUTBAH_JUMAT_SCHEDULES),
               child: const Text('Lihat Jadwal Khutbah Jumat (Cloud)'),
             ),

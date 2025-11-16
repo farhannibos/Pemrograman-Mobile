@@ -50,6 +50,8 @@ class SupabaseService extends GetxService {
   SupabaseQueryBuilder from(String table) => client.from(table);
   SupabaseStorageClient get storage => client.storage;
 
+    GoTrueClient get auth => client.auth;
+
   @override
   void onClose() {
     print("SupabaseService: onClose() called.");
