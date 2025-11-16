@@ -5,7 +5,7 @@ import 'package:intl/intl.dart'; // Untuk format tanggal
 import 'package:masjid_ku/app/modules/pengajianschedules/controllers/pengajian_schedule_controller.dart';
 
 class PengajianScheduleListView extends GetView<PengajianScheduleController> {
-  const PengajianScheduleListView({Key? key}) : super(key: key);
+  const PengajianScheduleListView({super.key});
 
   @override
   Widget build(BuildContext context) {

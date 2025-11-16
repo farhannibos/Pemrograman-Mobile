@@ -5,7 +5,7 @@ import 'package:masjid_ku/app/modules/settings/controllers/settings_controller.d
 import 'package:masjid_ku/core/constants/app_strings.dart';
 
 class SettingsView extends GetView<SettingsController> {
-  const SettingsView({Key? key}) : super(key: key);
+  const SettingsView({super.key});
 
   @override
   Widget build(BuildContext context) {

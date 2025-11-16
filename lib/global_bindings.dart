@@ -5,17 +5,25 @@ import 'package:masjid_ku/app/data/services/supabase_service.dart';
 import 'package:masjid_ku/app/modules/settings/providers/theme_provider.dart';
 
 class GlobalBindings extends Bindings {
-  // List untuk menyimpan Future dari setiap proses inisialisasi asinkron
-  final List<Future<void>> _initializationFutures = [];
+  // Simpan Future untuk setiap service
+  Future<LocalStorageService>? _localStorageFuture;
+  Future<ThemeProvider>? _themeProviderFuture;
+  Future<SupabaseService>? _supabaseFuture;
 
   @override
   void dependencies() {
-    // Daftarkan semua layanan asinkron dan tambahkan Future-nya ke list
+    // Daftarkan semua layanan asinkron
     // Urutan penting: LocalStorageService harus diinisialisasi terlebih dahulu
     // karena mungkin diperlukan oleh service lain
-    _initializationFutures.add(Get.putAsync(() => LocalStorageService().init()));
-    _initializationFutures.add(Get.putAsync(() => ThemeProvider().init()));
-    _initializationFutures.add(Get.putAsync(() => SupabaseService().init()));
+    
+    // LocalStorageService - HARUS PERTAMA
+    _localStorageFuture = Get.putAsync(() => LocalStorageService().init());
+    
+    // ThemeProvider
+    _themeProviderFuture = Get.putAsync(() => ThemeProvider().init());
+    
+    // SupabaseService (optional)
+    _supabaseFuture = Get.putAsync(() => SupabaseService().init());
   }
 
   // Metode baru untuk menunggu semua layanan asinkron selesai diinisialisasi
@@ -24,14 +32,33 @@ class GlobalBindings extends Bindings {
     
     // Inisialisasi LocalStorageService (penting untuk Hive) - HARUS PERTAMA
     try {
-      await _initializationFutures[0]; // LocalStorageService (index 0 sekarang)
+      if (_localStorageFuture == null) {
+        throw Exception('LocalStorageService future is null');
+      }
+      
+      final localStorageService = await _localStorageFuture!;
       print("LocalStorageService initialized successfully.");
       
       // Verifikasi bahwa LocalStorageService sudah terdaftar
       if (Get.isRegistered<LocalStorageService>()) {
         print("LocalStorageService is registered in GetX.");
+        
+        // Verifikasi bisa diakses
+        try {
+          final service = Get.find<LocalStorageService>();
+          print("LocalStorageService can be accessed via Get.find()");
+          print("Box is open: ${service.pengajianScheduleBox.isOpen}");
+        } catch (e) {
+          print("WARNING: LocalStorageService is registered but cannot be accessed: $e");
+          // Coba daftarkan ulang
+          Get.put(localStorageService, permanent: true);
+          print("LocalStorageService re-registered.");
+        }
       } else {
         print("WARNING: LocalStorageService is NOT registered in GetX!");
+        // Daftarkan manual
+        Get.put(localStorageService, permanent: true);
+        print("LocalStorageService manually registered.");
       }
     } catch (e) {
       print('Error initializing LocalStorageService: $e');
@@ -40,8 +67,10 @@ class GlobalBindings extends Bindings {
     
     // Inisialisasi ThemeProvider (penting untuk tema)
     try {
-      await _initializationFutures[1]; // ThemeProvider (index 1 sekarang)
-      print("ThemeProvider initialized successfully.");
+      if (_themeProviderFuture != null) {
+        await _themeProviderFuture!;
+        print("ThemeProvider initialized successfully.");
+      }
     } catch (e) {
       print('Error initializing ThemeProvider: $e');
       // Ini kritis, tapi kita akan handle di main
@@ -50,8 +79,10 @@ class GlobalBindings extends Bindings {
     
     // SupabaseService bisa optional
     try {
-      await _initializationFutures[2]; // SupabaseService (index 2 sekarang)
-      print("SupabaseService initialized successfully.");
+      if (_supabaseFuture != null) {
+        await _supabaseFuture!;
+        print("SupabaseService initialized successfully.");
+      }
     } catch (e) {
       print('Error initializing SupabaseService: $e');
       print('Note: App will continue without Supabase.');

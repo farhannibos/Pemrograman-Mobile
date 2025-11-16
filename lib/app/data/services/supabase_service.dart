@@ -36,6 +36,6 @@ class SupabaseService extends GetxService {
   SupabaseClient get supabaseClient => client;
 
   // Anda bisa menambahkan helper lain di sini, misalnya untuk from() atau storage()
-  // SupabaseQueryBuilder from(String table) => client.from(table);
+  SupabaseQueryBuilder from(String table) => client.from(table);
   // SupabaseStorageClient get storage => client.storage;
 }

@@ -30,7 +30,7 @@ class AppTheme {
       brightness: Brightness.dark,
     ).copyWith(
       secondary: Colors.teal, // Warna aksen
-      background: const Color(0xFF1E1E1E), // Warna background gelap
+      surface: const Color(0xFF1E1E1E), // Warna background gelap
     ),
     scaffoldBackgroundColor: const Color(0xFF1E1E1E),
     // Tambahan kustomisasi tema gelap lainnya
