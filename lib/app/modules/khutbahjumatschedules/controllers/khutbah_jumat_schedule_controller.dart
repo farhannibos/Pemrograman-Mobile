@@ -79,7 +79,7 @@ class KhutbahJumatScheduleController extends GetxController {
               const SizedBox(height: 16),
               TextField(controller: khatibNameController, decoration: const InputDecoration(labelText: 'Nama Khatib')),
               TextField(controller: topicController, decoration: const InputDecoration(labelText: 'Topik Khutbah (Opsional)')),
-              TextField(controller: timeController, decoration: const InputDecoration(labelText: 'Waktu (misal: 12:00 WIB) (Opsional)')),
+              TextField(controller: timeController, decoration: const InputDecoration(labelText: 'Waktu (misal: 12:00 atau 12:00:00) (Opsional)', helperText: 'Format: HH:MM atau HH:MM:SS')),
               const SizedBox(height: 10),
               // Tombol untuk memilih tanggal
               Obx(() => ListTile(

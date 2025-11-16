@@ -7,6 +7,42 @@ class KhutbahJumatScheduleProvider extends GetxService {
   final SupabaseService _supabaseService = Get.find<SupabaseService>();
   static const String _tableName = 'khutbah_jumat_schedules';
 
+  // Helper method untuk membersihkan format waktu
+  // Mengkonversi "12:00 WIB" menjadi "12:00:00" atau format yang valid
+  String? _cleanTimeFormat(String? timeString) {
+    if (timeString == null || timeString.trim().isEmpty) {
+      return null;
+    }
+
+    // Hapus whitespace di awal dan akhir
+    String cleaned = timeString.trim();
+
+    // Hapus timezone text seperti "WIB", "WITA", "WIT", dll
+    cleaned = cleaned.replaceAll(RegExp(r'\s*(WIB|WITA|WIT|UTC|GMT).*', caseSensitive: false), '');
+
+    // Hapus whitespace yang tersisa
+    cleaned = cleaned.trim();
+
+    // Validasi format waktu (HH:MM atau HH:MM:SS)
+    final timeRegex = RegExp(r'^(\d{1,2}):(\d{2})(:(\d{2}))?$');
+    if (!timeRegex.hasMatch(cleaned)) {
+      print("Warning: Invalid time format: $timeString, will be ignored");
+      return null;
+    }
+
+    // Pastikan format menjadi HH:MM:SS
+    final parts = cleaned.split(':');
+    if (parts.length == 2) {
+      // Jika hanya HH:MM, tambahkan :00 untuk detik
+      return '${parts[0].padLeft(2, '0')}:${parts[1]}:00';
+    } else if (parts.length == 3) {
+      // Jika sudah HH:MM:SS, pastikan formatnya benar
+      return '${parts[0].padLeft(2, '0')}:${parts[1]}:${parts[2]}';
+    }
+
+    return null;
+  }
+
   Future<List<KhutbahJumatScheduleModel>> getKhutbahJumatSchedules() async {
     print("KhutbahJumatScheduleProvider: Attempting to fetch schedules from Supabase...");
     try {
@@ -48,6 +84,17 @@ class KhutbahJumatScheduleProvider extends GetxService {
       // Untuk skema kita yang pakai uuid_generate_v4() default, kita tidak perlu kirim ID.
       dataToInsert.remove('id'); 
       dataToInsert.remove('created_at'); // Supabase juga akan generate created_at
+
+      // Bersihkan format waktu sebelum dikirim ke Supabase
+      if (dataToInsert['time'] != null) {
+        final cleanedTime = _cleanTimeFormat(dataToInsert['time'] as String?);
+        if (cleanedTime != null) {
+          dataToInsert['time'] = cleanedTime;
+        } else {
+          // Jika format waktu tidak valid, hapus field time (set null)
+          dataToInsert['time'] = null;
+        }
+      }
 
       await _supabaseService
           .from(_tableName)
