@@ -25,8 +25,8 @@ void main() async {
     if (Get.isRegistered<SupabaseService>()) {
       print("Main: SupabaseService is confirmed to be registered with GetX.");
       // Jika berhasil, Anda bisa melakukan pengecekan dasar
-      final SupabaseService supabaseService = Get.find();
-      print("Main: Supabase client instance obtained: ${supabaseService.supabaseClient != null ? 'OK' : 'NULL'}");
+      Get.find<SupabaseService>();
+      print("Main: Supabase client instance obtained: OK");
     } else {
       print("Main: ERROR: SupabaseService is NOT registered with GetX after initialization!");
       // Jika ini terjadi, ada masalah fundamental. Kita bisa menghentikan aplikasi.

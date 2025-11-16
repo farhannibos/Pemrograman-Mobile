@@ -5,8 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseService extends GetxService {
   late final SupabaseClient client;
-  /// Flag to indicate whether initialization completed successfully
-  bool isInitialized = false;
 
   Future<SupabaseService> init() async {
     print("SupabaseService: --- Starting init() process ---");
@@ -36,7 +34,6 @@ class SupabaseService extends GetxService {
       );
 
       client = Supabase.instance.client;
-      isInitialized = true;
       print("SupabaseService: Supabase Client Initialized Successfully!");
       print("SupabaseService: User: ${client.auth.currentUser?.email ?? 'No user logged in'}");
       

@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:masjid_ku/app/modules/khutbahjumatschedules/controllers/khutbah_jumat_schedule_controller.dart';
 
 class KhutbahJumatScheduleListView extends GetView<KhutbahJumatScheduleController> {
-  const KhutbahJumatScheduleListView({super.key});
+  const KhutbahJumatScheduleListView({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +15,7 @@ class KhutbahJumatScheduleListView extends GetView<KhutbahJumatScheduleControlle
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => controller.refreshSchedules(), // Refresh data dari Supabase
+            onPressed: () => controller.refreshSchedules(),
           ),
         ],
       ),
@@ -45,6 +45,10 @@ class KhutbahJumatScheduleListView extends GetView<KhutbahJumatScheduleControlle
                         Text('Waktu: ${schedule.time}'),
                     ],
                   ),
+                  trailing: IconButton( // <-- Tambahkan tombol hapus ini
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => controller.deleteKhutbahJumat(schedule.id),
+                  ),
                   onTap: () {
                     Get.snackbar(
                       'Detail Khutbah',
@@ -58,6 +62,11 @@ class KhutbahJumatScheduleListView extends GetView<KhutbahJumatScheduleControlle
           );
         }
       }),
+      floatingActionButton: FloatingActionButton( // <-- Tambahkan FAB ini
+        onPressed: () => controller.showAddKhutbahDialog(),
+        child: const Icon(Icons.add),
+        tooltip: 'Tambah Jadwal Khutbah',
+      ),
     );
   }
 }
