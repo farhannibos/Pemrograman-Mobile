@@ -5,37 +5,58 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseService extends GetxService {
   late final SupabaseClient client;
+  /// Flag to indicate whether initialization completed successfully
+  bool isInitialized = false;
 
   Future<SupabaseService> init() async {
-    // Memuat variabel lingkungan dari file .env
-    await dotenv.load(fileName: ".env");
+    print("SupabaseService: --- Starting init() process ---");
+    try {
+      print("SupabaseService: Loading .env file...");
+      await dotenv.load(fileName: ".env");
+      print("SupabaseService: .env loaded.");
 
-    final supabaseUrl = dotenv.env['SUPABASE_URL'];
-    final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
+      final supabaseUrl = dotenv.env['SUPABASE_URL'];
+      final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
 
-    if (supabaseUrl == null || supabaseUrl.isEmpty) {
-      throw Exception('SUPABASE_URL not found in .env file');
+      print("SupabaseService: SUPABASE_URL from .env: ${supabaseUrl?.isNotEmpty == true ? 'Loaded' : 'NOT FOUND'}");
+      print("SupabaseService: SUPABASE_ANON_KEY from .env: ${supabaseAnonKey?.isNotEmpty == true ? 'Loaded' : 'NOT FOUND'}");
+
+      if (supabaseUrl == null || supabaseUrl.isEmpty) {
+        throw Exception('SUPABASE_URL not found or empty in .env file');
+      }
+      if (supabaseAnonKey == null || supabaseAnonKey.isEmpty) {
+        throw Exception('SUPABASE_ANON_KEY not found or empty in .env file');
+      }
+
+      print("SupabaseService: Initializing Supabase client...");
+      await Supabase.initialize(
+        url: supabaseUrl,
+        anonKey: supabaseAnonKey,
+        debug: true, // Keep debug true for now
+      );
+
+      client = Supabase.instance.client;
+      isInitialized = true;
+      print("SupabaseService: Supabase Client Initialized Successfully!");
+      print("SupabaseService: User: ${client.auth.currentUser?.email ?? 'No user logged in'}");
+      
+      print("SupabaseService: --- Init() completed successfully ---");
+      return this;
+    } catch (e, stackTrace) {
+      print("SupabaseService: FATAL ERROR during init(): $e");
+      print("SupabaseService: Stack Trace: $stackTrace");
+      rethrow; // Re-throw the error to ensure GetX knows about the failure
     }
-    if (supabaseAnonKey == null || supabaseAnonKey.isEmpty) {
-      throw Exception('SUPABASE_ANON_KEY not found in .env file');
-    }
-
-    // Inisialisasi Supabase client
-    await Supabase.initialize(
-      url: supabaseUrl,
-      anonKey: supabaseAnonKey,
-      debug: true, // Set to false in production
-    );
-
-    client = Supabase.instance.client;
-    print("Supabase Initialized: ${client.auth.currentUser?.email ?? 'No user logged in'}");
-    return this;
   }
 
-  // Metode helper untuk mengakses client Supabase
   SupabaseClient get supabaseClient => client;
-
-  // Anda bisa menambahkan helper lain di sini, misalnya untuk from() atau storage()
   SupabaseQueryBuilder from(String table) => client.from(table);
-  // SupabaseStorageClient get storage => client.storage;
+  SupabaseStorageClient get storage => client.storage;
+
+  @override
+  void onClose() {
+    print("SupabaseService: onClose() called.");
+    // Supabase client secara otomatis dielola, tidak perlu manual dispose di sini
+    super.onClose();
+  }
 }

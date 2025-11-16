@@ -1,64 +1,58 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/date_symbol_data_local.dart'; // <-- Tambahkan import ini
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:masjid_ku/app/data/services/supabase_service.dart'; // <-- Pastikan import SupabaseService di sini
 import 'package:masjid_ku/app/routes/app_pages.dart';
 import 'package:masjid_ku/core/themes/app_theme.dart';
 import 'package:masjid_ku/global_bindings.dart';
 import 'package:masjid_ku/app/modules/settings/providers/theme_provider.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // Pastikan Flutter bindings sudah diinisialisasi
+  WidgetsFlutterBinding.ensureInitialized();
 
-  // --- Tambahkan inisialisasi locale data untuk intl ---
-  // Ini harus dipanggil sebelum DateFormat digunakan di mana pun.
   await initializeDateFormatting('id_ID', null);
-  // --- Akhir inisialisasi locale data ---
+
+  print("Main: Starting global service initialization...");
+  final globalBindings = GlobalBindings();
+  globalBindings.dependencies(); 
 
   try {
-    // Inisialisasi global bindings
-    final globalBindings = GlobalBindings();
-    globalBindings.dependencies(); // Ini mendaftarkan layanan asinkron ke GetX
+    await globalBindings.initializeServices();
+    print("Main: All global services (including SupabaseService) initialized successfully.");
     
-    // Tunggu semua layanan asinkron selesai diinisialisasi
-    await globalBindings.initializeServices(); // Panggil metode baru ini
+    // VERIFIKASI EKSTRA: Coba Get.find() SupabaseService secara eksplisit di sini
+    if (Get.isRegistered<SupabaseService>()) {
+      print("Main: SupabaseService is confirmed to be registered with GetX.");
+      // Jika berhasil, Anda bisa melakukan pengecekan dasar
+      final SupabaseService supabaseService = Get.find();
+      print("Main: Supabase client instance obtained: ${supabaseService.supabaseClient != null ? 'OK' : 'NULL'}");
+    } else {
+      print("Main: ERROR: SupabaseService is NOT registered with GetX after initialization!");
+      // Jika ini terjadi, ada masalah fundamental. Kita bisa menghentikan aplikasi.
+      return; 
+    }
+    
   } catch (e, stackTrace) {
-    print('Error during global service initialization: $e');
-    print('Stack trace: $stackTrace');
-    // Jangan return, tetap jalankan aplikasi dengan fallback
-    // Aplikasi akan menggunakan default theme jika ThemeProvider gagal
+    print('Main: FATAL ERROR during global service initialization: $e');
+    print('Main: Stack Trace: $stackTrace');
+    // Tampilkan pesan error ke pengguna dan hentikan aplikasi
+    runApp(ErrorApp(errorMessage: 'Aplikasi gagal memulai: $e')); // Tampilkan error screen
+    return;
   }
 
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // Pastikan ThemeProvider sudah terdaftar sebelum menggunakan Obx
-    if (!Get.isRegistered<ThemeProvider>()) {
-      // Jika belum terdaftar, gunakan default theme
-      return GetMaterialApp(
-        title: "MasjidKu",
-        initialRoute: AppPages.INITIAL,
-        getPages: AppPages.routes,
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.light,
-        debugShowCheckedModeBanner: false,
-      );
-    }
-    
-    // Jika sudah terdaftar, gunakan Obx untuk reactive updates
     final themeProvider = Get.find<ThemeProvider>();
     
     return Obx(() {
-      // Pastikan kita selalu mengakses observable variable di dalam Obx
-      final ThemeMode currentThemeMode = themeProvider.isDarkMode.value 
-          ? ThemeMode.dark 
-          : ThemeMode.light;
+      final ThemeMode currentThemeMode = themeProvider.isDarkMode.value ? ThemeMode.dark : ThemeMode.light;
       
       return GetMaterialApp(
         title: "MasjidKu",
@@ -70,5 +64,30 @@ class MyApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
       );
     });
+  }
+}
+
+// Tambahkan widget ini untuk menampilkan error jika inisialisasi gagal
+class ErrorApp extends StatelessWidget {
+  final String errorMessage;
+  const ErrorApp({Key? key, required this.errorMessage}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return GetMaterialApp(
+      home: Scaffold(
+        appBar: AppBar(title: const Text('Error Aplikasi')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Text(
+              'Terjadi kesalahan fatal saat memulai aplikasi:\n\n$errorMessage\n\nSilakan coba lagi nanti atau hubungi dukungan.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.red, fontSize: 16),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:masjid_ku/app/modules/home/controllers/home_controller.dart';
 import 'package:masjid_ku/app/modules/settings/providers/theme_provider.dart';
 import 'package:masjid_ku/app/routes/app_routes.dart';
+import 'package:masjid_ku/app/data/services/supabase_service.dart';
 import 'package:masjid_ku/core/constants/app_strings.dart';
 
 class HomeView extends GetView<HomeController> {
@@ -50,8 +51,24 @@ class HomeView extends GetView<HomeController> {
             ),
             const SizedBox(height: 10), // Spasi antar tombol
             ElevatedButton(
-              // <-- Tambahkan tombol ini
-              onPressed: () => Get.toNamed(Routes.KHUTBAH_JUMAT_SCHEDULES),
+              // Cloud button: check Supabase readiness before navigating
+              onPressed: () {
+                if (!Get.isRegistered<SupabaseService>()) {
+                  Get.snackbar('Cloud belum siap', 'Koneksi cloud belum tersedia. Silakan tunggu atau cek konfigurasi .env',
+                      snackPosition: SnackPosition.BOTTOM);
+                  return;
+                }
+
+                final supabase = Get.find<SupabaseService>();
+                // If supabase exists but not initialized, warn user
+                if (!supabase.isInitialized) {
+                  Get.snackbar('Cloud belum siap', 'Inisialisasi cloud masih berlangsung. Coba lagi sebentar.',
+                      snackPosition: SnackPosition.BOTTOM);
+                  return;
+                }
+
+                Get.toNamed(Routes.KHUTBAH_JUMAT_SCHEDULES);
+              },
               child: const Text('Lihat Jadwal Khutbah Jumat (Cloud)'),
             ),
           ],

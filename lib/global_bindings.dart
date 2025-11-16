@@ -23,7 +23,11 @@ class GlobalBindings extends Bindings {
     _themeProviderFuture = Get.putAsync(() => ThemeProvider().init());
     
     // SupabaseService (optional)
-    _supabaseFuture = Get.putAsync(() => SupabaseService().init());
+    // Daftarkan instance terlebih dahulu agar Get.find/Get.isRegistered tidak melempar
+    final supabaseService = SupabaseService();
+    Get.put<SupabaseService>(supabaseService, permanent: true);
+    // Mulai inisialisasi asinkron namun biarkan instance tetap terdaftar
+    _supabaseFuture = supabaseService.init();
   }
 
   // Metode baru untuk menunggu semua layanan asinkron selesai diinisialisasi

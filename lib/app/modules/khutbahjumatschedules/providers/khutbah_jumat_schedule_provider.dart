@@ -1,50 +1,39 @@
 // lib/app/modules/khutbahjumatschedules/providers/khutbah_jumat_schedule_provider.dart
 import 'package:get/get.dart';
 import 'package:masjid_ku/app/data/models/khutbah_jumat_schedule_model.dart';
-import 'package:masjid_ku/app/data/services/supabase_service.dart'; // Import SupabaseService
+import 'package:masjid_ku/app/data/services/supabase_service.dart';
 
 class KhutbahJumatScheduleProvider extends GetxService {
-  // SupabaseService diambil saat diperlukan, karena inisialisasinya bisa asinkron
-
-  static const String _tableName =
-      'khutbah_jumat_schedules'; // Nama tabel di Supabase
+  static const String _tableName = 'khutbah_jumat_schedules';
 
   Future<List<KhutbahJumatScheduleModel>> getKhutbahJumatSchedules() async {
+    print("KhutbahJumatScheduleProvider: Attempting to fetch schedules from Supabase...");
+
+    // Ambil SupabaseService pada saat diperlukan — jangan panggil di konstruktor
+    final SupabaseService? supabaseService =
+        Get.isRegistered<SupabaseService>() ? Get.find<SupabaseService>() : null;
+
+    if (supabaseService == null) {
+      print('KhutbahJumatScheduleProvider: SupabaseService belum tersedia. Mengembalikan list kosong.');
+      return <KhutbahJumatScheduleModel>[];
+    }
+
     try {
-      final SupabaseService? supabaseService = Get.isRegistered<SupabaseService>()
-          ? Get.find<SupabaseService>()
-          : null;
-
-      if (supabaseService == null) {
-        // Supabase belum diinisialisasi atau tidak tersedia; kembalikan list kosong
-        print('SupabaseService tidak tersedia. Mengembalikan daftar kosong.');
-        return <KhutbahJumatScheduleModel>[];
-      }
-
-      // Query data dari tabel Supabase
-      final List<dynamic> data = await supabaseService
+      final response = await supabaseService
           .from(_tableName)
-          .select() // Memilih semua kolom
-          .order('date', ascending: true) // Urutkan berdasarkan tanggal ascending
-          as List<dynamic>;
+          .select()
+          .order('date', ascending: true);
+
+      print("KhutbahJumatScheduleProvider: Supabase response received.");
 
       // Konversi List<Map<String, dynamic>> menjadi List<KhutbahJumatScheduleModel>
-      return data
-          .map(
-            (json) => KhutbahJumatScheduleModel.fromJson(
-              json as Map<String, dynamic>,
-            ),
-          )
+      return (response as List<dynamic>)
+          .map((json) => KhutbahJumatScheduleModel.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (e, stackTrace) {
-      print("Error fetching Khutbah Jumat schedules from Supabase: $e");
+      print("KhutbahJumatScheduleProvider: Error fetching Khutbah Jumat schedules from Supabase: $e");
       print("Stack Trace: $stackTrace");
-      rethrow; // Lempar ulang error agar bisa ditangani di Controller
+      rethrow;
     }
   }
-
-  // Jika nanti ada fitur admin dan perlu CRUD, metode ini akan ditambahkan
-  // Future<void> addKhutbahSchedule(KhutbahJumatScheduleModel schedule) async { ... }
-  // Future<void> updateKhutbahSchedule(KhutbahJumatScheduleModel schedule) async { ... }
-  // Future<void> deleteKhutbahSchedule(String id) async { ... }
 }
