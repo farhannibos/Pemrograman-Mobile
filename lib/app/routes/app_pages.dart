@@ -31,7 +31,8 @@ class AppPages {
       page: () => const PengajianScheduleListView(),
       binding: PengajianScheduleBinding(),
     ),
-    GetPage( // Tambahkan GetPage ini
+    GetPage(
+      // Tambahkan GetPage ini
       name: Routes.KHUTBAH_JUMAT_SCHEDULES,
       page: () => const KhutbahJumatScheduleListView(),
       binding: KhutbahJumatScheduleBinding(),
