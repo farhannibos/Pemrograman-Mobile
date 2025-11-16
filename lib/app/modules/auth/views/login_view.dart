@@ -10,14 +10,14 @@ class LoginView extends GetView<AuthController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Login Admin')),
+      appBar: AppBar(title: const Text('Login Pengguna')),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('Selamat Datang di Admin MasjidKu', style: Get.textTheme.headlineSmall),
+              Text('Selamat Datang di MasjidKu', style: Get.textTheme.headlineSmall),
               const SizedBox(height: 40),
               TextField(
                 controller: controller.emailController,

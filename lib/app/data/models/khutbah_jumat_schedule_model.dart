@@ -6,6 +6,7 @@ class KhutbahJumatScheduleModel {
   final String? topic;
   final String? time;
   final DateTime createdAt;
+  final String? userId; // ID user yang membuat jadwal ini
 
   KhutbahJumatScheduleModel({
     required this.id,
@@ -14,6 +15,7 @@ class KhutbahJumatScheduleModel {
     this.topic,
     this.time,
     required this.createdAt,
+    this.userId,
   });
 
   factory KhutbahJumatScheduleModel.fromJson(Map<String, dynamic> json) {
@@ -24,6 +26,7 @@ class KhutbahJumatScheduleModel {
       topic: json['topic'] as String?,
       time: json['time'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
+      userId: json['user_id'] as String?,
     );
   }
 
@@ -35,6 +38,7 @@ class KhutbahJumatScheduleModel {
       'topic': topic,
       'time': time,
       'created_at': createdAt.toIso8601String(),
+      'user_id': userId,
     };
   }
 }

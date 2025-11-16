@@ -7,6 +7,17 @@ class KhutbahJumatScheduleProvider extends GetxService {
   final SupabaseService _supabaseService = Get.find<SupabaseService>();
   static const String _tableName = 'khutbah_jumat_schedules';
 
+  // Helper method untuk mendapatkan user ID yang sedang login
+  String? _getCurrentUserId() {
+    try {
+      final user = _supabaseService.supabaseClient.auth.currentUser;
+      return user?.id;
+    } catch (e) {
+      print("Error getting current user ID: $e");
+      return null;
+    }
+  }
+
   // Helper method untuk membersihkan format waktu
   // Mengkonversi "12:00 WIB" menjadi "12:00:00" atau format yang valid
   String? _cleanTimeFormat(String? timeString) {
@@ -46,9 +57,17 @@ class KhutbahJumatScheduleProvider extends GetxService {
   Future<List<KhutbahJumatScheduleModel>> getKhutbahJumatSchedules() async {
     print("KhutbahJumatScheduleProvider: Attempting to fetch schedules from Supabase...");
     try {
+      final userId = _getCurrentUserId();
+      if (userId == null) {
+        print("KhutbahJumatScheduleProvider: No user logged in, returning empty list");
+        return [];
+      }
+
+      // Filter data berdasarkan user_id yang sedang login
       final List<dynamic> data = await _supabaseService
           .from(_tableName)
           .select()
+          .eq('user_id', userId) // Hanya ambil data milik user yang login
           .order('date', ascending: true);
 
       print("KhutbahJumatScheduleProvider: Supabase response received for SELECT.");
@@ -78,12 +97,20 @@ class KhutbahJumatScheduleProvider extends GetxService {
       // Kita perlu membuat map JSON tanpa 'id' karena Supabase akan meng-generate ID sendiri
       // atau menggunakan uuid_generate_v4() sesuai skema tabel.
       // Namun, jika model Anda memang membutuhkan ID dari client, pastikan itu unik.
+      final userId = _getCurrentUserId();
+      if (userId == null) {
+        throw Exception('User tidak terautentikasi. Silakan login terlebih dahulu.');
+      }
+
       final Map<String, dynamic> dataToInsert = schedule.toJson();
       // Hapus 'id' dari dataToInsert jika Supabase yang generate,
       // atau biarkan jika Anda ingin mengirim ID yang di-generate client.
       // Untuk skema kita yang pakai uuid_generate_v4() default, kita tidak perlu kirim ID.
       dataToInsert.remove('id'); 
       dataToInsert.remove('created_at'); // Supabase juga akan generate created_at
+      
+      // Tambahkan user_id dari user yang sedang login
+      dataToInsert['user_id'] = userId;
 
       // Bersihkan format waktu sebelum dikirim ke Supabase
       if (dataToInsert['time'] != null) {
@@ -113,10 +140,17 @@ class KhutbahJumatScheduleProvider extends GetxService {
   Future<void> deleteKhutbahSchedule(String id) async {
     print("KhutbahJumatScheduleProvider: Attempting to delete schedule from Supabase (ID: $id)...");
     try {
+      final userId = _getCurrentUserId();
+      if (userId == null) {
+        throw Exception('User tidak terautentikasi. Silakan login terlebih dahulu.');
+      }
+
+      // Hanya bisa menghapus data milik user yang sedang login
       await _supabaseService
           .from(_tableName)
           .delete()
-          .eq('id', id); // Filter berdasarkan ID
+          .eq('id', id)
+          .eq('user_id', userId); // Pastikan hanya menghapus data milik user yang login
 
       print("KhutbahJumatScheduleProvider: Supabase response received for DELETE.");
       print('Khutbah Jumat schedule deleted from Supabase (ID: $id).');

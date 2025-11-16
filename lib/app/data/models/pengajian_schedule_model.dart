@@ -7,6 +7,7 @@ class PengajianScheduleModel {
   final String time;
   final String speaker;
   final DateTime createdAt;
+  final String? userId; // ID user yang membuat jadwal ini
 
   PengajianScheduleModel({
     required this.id,
@@ -16,6 +17,7 @@ class PengajianScheduleModel {
     required this.time,
     required this.speaker,
     required this.createdAt,
+    this.userId,
   });
 
   // Convert to Map untuk penyimpanan (jika diperlukan)
@@ -28,6 +30,7 @@ class PengajianScheduleModel {
       'time': time,
       'speaker': speaker,
       'createdAt': createdAt.toIso8601String(),
+      'userId': userId,
     };
   }
 
@@ -41,6 +44,7 @@ class PengajianScheduleModel {
       time: map['time'] as String,
       speaker: map['speaker'] as String,
       createdAt: DateTime.parse(map['createdAt'] as String),
+      userId: map['userId'] as String?,
     );
   }
 }

@@ -3,9 +3,22 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // Import SharedPreferences
 import 'package:masjid_ku/app/data/models/pengajian_schedule_model.dart';
 import 'package:masjid_ku/app/data/services/local_storage_service.dart'; // Import LocalStorageService
+import 'package:masjid_ku/app/data/services/supabase_service.dart';
 
 class PengajianScheduleProvider extends GetxService {
   LocalStorageService? _localStorageService;
+  
+  // Helper method untuk mendapatkan user ID yang sedang login
+  String? _getCurrentUserId() {
+    try {
+      final supabaseService = Get.find<SupabaseService>();
+      final user = supabaseService.supabaseClient.auth.currentUser;
+      return user?.id;
+    } catch (e) {
+      print("Error getting current user ID: $e");
+      return null;
+    }
+  }
   
   // Method untuk mendapatkan LocalStorageService
   // Menunggu service siap dengan polling jika belum terdaftar
@@ -67,10 +80,17 @@ class PengajianScheduleProvider extends GetxService {
 
   // --- Metode untuk Hive (CRUD) ---
   // Mendapatkan semua jadwal pengajian dari Hive, diurutkan berdasarkan createdAt (terbaru di atas)
+  // Hanya menampilkan data milik user yang sedang login
   List<PengajianScheduleModel> getPengajianSchedules() {
     final List<PengajianScheduleModel> schedules = [];
     
     try {
+      final userId = _getCurrentUserId();
+      if (userId == null) {
+        print('Warning: No user logged in, returning empty list');
+        return schedules;
+      }
+
       // Gunakan synchronous access jika service sudah tersedia
       if (_localStorageService == null) {
         if (!Get.isRegistered<LocalStorageService>()) {
@@ -91,13 +111,18 @@ class PengajianScheduleProvider extends GetxService {
       print('Reading from Hive box. Box contains ${box.length} items');
       
       // Iterasi semua values di box dan konversi Map ke Model
+      // Filter berdasarkan user_id
       for (var key in box.keys) {
         try {
           final value = box.get(key);
           if (value is Map) {
             final mapData = Map<String, dynamic>.from(value);
-            print('Reading item with key: $key, data: $mapData');
-            schedules.add(PengajianScheduleModel.fromMap(mapData));
+            // Hanya tambahkan jika user_id sesuai dengan user yang login
+            final itemUserId = mapData['userId'] as String?;
+            if (itemUserId == userId) {
+              print('Reading item with key: $key, data: $mapData');
+              schedules.add(PengajianScheduleModel.fromMap(mapData));
+            }
           } else {
             print('Warning: Item with key $key is not a Map, type: ${value.runtimeType}');
           }
@@ -106,7 +131,7 @@ class PengajianScheduleProvider extends GetxService {
         }
       }
       
-      print('Successfully loaded ${schedules.length} schedules from Hive');
+      print('Successfully loaded ${schedules.length} schedules from Hive for user $userId');
       
       // Urutkan dari yang terbaru ke terlama
       schedules.sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -121,6 +146,11 @@ class PengajianScheduleProvider extends GetxService {
   // Menambahkan jadwal pengajian baru ke Hive
   Future<void> addPengajianSchedule(PengajianScheduleModel schedule) async {
     try {
+      final userId = _getCurrentUserId();
+      if (userId == null) {
+        throw Exception('User tidak terautentikasi. Silakan login terlebih dahulu.');
+      }
+
       // Pastikan LocalStorageService tersedia
       final service = await _getLocalStorageService();
       final box = service.pengajianScheduleBox;
@@ -130,9 +160,10 @@ class PengajianScheduleProvider extends GetxService {
         throw Exception('Hive box is not open');
       }
       
-      // Konversi ke Map
+      // Konversi ke Map dan tambahkan user_id
       final mapData = schedule.toMap();
-      print('Saving to Hive: ${schedule.title}');
+      mapData['userId'] = userId; // Pastikan user_id disimpan
+      print('Saving to Hive: ${schedule.title} for user $userId');
       print('Map data: $mapData');
       
       // Simpan sebagai Map karena tidak ada Hive adapter
@@ -154,19 +185,55 @@ class PengajianScheduleProvider extends GetxService {
   }
 
   // Menghapus jadwal pengajian dari Hive berdasarkan ID
+  // Hanya bisa menghapus data milik user yang sedang login
   Future<void> deletePengajianSchedule(String id) async {
+    final userId = _getCurrentUserId();
+    if (userId == null) {
+      throw Exception('User tidak terautentikasi. Silakan login terlebih dahulu.');
+    }
+
     final service = await _getLocalStorageService();
     final box = service.pengajianScheduleBox;
+    
+    // Verifikasi bahwa data milik user yang login sebelum menghapus
+    final value = box.get(id);
+    if (value is Map) {
+      final mapData = Map<String, dynamic>.from(value);
+      final itemUserId = mapData['userId'] as String?;
+      if (itemUserId != userId) {
+        throw Exception('Anda tidak memiliki izin untuk menghapus jadwal ini.');
+      }
+    }
+    
     await box.delete(id);
     print('Pengajian schedule deleted from Hive: $id');
   }
 
   // Mengupdate jadwal pengajian di Hive
+  // Hanya bisa mengupdate data milik user yang sedang login
   Future<void> updatePengajianSchedule(PengajianScheduleModel updatedSchedule) async {
+    final userId = _getCurrentUserId();
+    if (userId == null) {
+      throw Exception('User tidak terautentikasi. Silakan login terlebih dahulu.');
+    }
+
     final service = await _getLocalStorageService();
     final box = service.pengajianScheduleBox;
+    
     if (box.containsKey(updatedSchedule.id)) {
-      await box.put(updatedSchedule.id, updatedSchedule.toMap());
+      // Verifikasi bahwa data milik user yang login
+      final value = box.get(updatedSchedule.id);
+      if (value is Map) {
+        final mapData = Map<String, dynamic>.from(value);
+        final itemUserId = mapData['userId'] as String?;
+        if (itemUserId != userId) {
+          throw Exception('Anda tidak memiliki izin untuk mengupdate jadwal ini.');
+        }
+      }
+      
+      final mapData = updatedSchedule.toMap();
+      mapData['userId'] = userId; // Pastikan user_id tetap ada
+      await box.put(updatedSchedule.id, mapData);
       print('Pengajian schedule updated in Hive: ${updatedSchedule.title} (ID: ${updatedSchedule.id})');
     } else {
       print('Pengajian schedule with ID ${updatedSchedule.id} not found in Hive for update.');

@@ -10,14 +10,14 @@ class RegisterView extends GetView<AuthController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Daftar Akun Admin')),
+      appBar: AppBar(title: const Text('Daftar Akun Pengguna')),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('Buat Akun Admin Baru', style: Get.textTheme.headlineSmall),
+              Text('Buat Akun Pengguna Baru', style: Get.textTheme.headlineSmall),
               const SizedBox(height: 40),
               TextField(
                 controller: controller.emailController,
