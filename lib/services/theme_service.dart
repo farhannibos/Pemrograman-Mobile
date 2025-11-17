@@ -5,8 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ThemeService extends GetxController {
   static ThemeService get to => Get.find<ThemeService>();
   
-  final RxBool isDarkMode = false.obs;
-
+  final RxBool isDarkMode = false.obs; 
+//tandeh se stiah
   @override
   void onInit() {
     super.onInit();
@@ -14,7 +14,7 @@ class ThemeService extends GetxController {
   }
 
   Future<void> loadTheme() async {
-    try {
+    try {//mokak shrd,ngalak data deri dark mode
       final prefs = await SharedPreferences.getInstance();
       isDarkMode.value = prefs.getBool('is_dark_mode') ?? false;
       updateTheme();
@@ -28,7 +28,7 @@ class ThemeService extends GetxController {
       isDarkMode.value = !isDarkMode.value;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('is_dark_mode', isDarkMode.value);
-      updateTheme();
+      updateTheme(); //abelik tema peteng terak,nympn se anyar/
     } catch (e) {
       debugPrint('Error toggling theme: $e');
     }
@@ -36,7 +36,7 @@ class ThemeService extends GetxController {
 
   void updateTheme() {
     if (isDarkMode.value) {
-      Get.changeThemeMode(ThemeMode.dark);
+      Get.changeThemeMode(ThemeMode.dark); //se agenteh tema
     } else {
       Get.changeThemeMode(ThemeMode.light);
     }
