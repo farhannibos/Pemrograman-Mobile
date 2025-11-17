@@ -9,7 +9,9 @@ import 'services/theme_service.dart';
 import 'services/hive_kajian_service.dart';
 import 'models/kajian_hive_model.dart';
 import 'controllers/kajian_hive_controller.dart';
-import 'models/prayer_time_model.dart'; // Import model baru
+import 'models/prayer_time_model.dart';
+import 'services/supabase_service.dart'; 
+import 'auth_screen.dart'; // Import AuthScreen// Import Supabase service
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,7 +21,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
-  List<PrayerTime> _prayerTimes = []; // Ganti dengan model class
+  List<PrayerTime> _prayerTimes = [];
   int? _selectedIndex;
   bool _isLoading = false;
   String? _selectedCity;
@@ -89,7 +91,299 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     super.dispose();
   }
 
-  // Load saved location dari Shared Preferences
+  // ===== SUPABASE METHODS =====
+  void _showSupabaseDialog() {
+    final supabase = Get.find<SupabaseService>();
+    final kajianController = Get.find<KajianHiveController>();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cloud Storage'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Email: ${supabase.currentUser?.email ?? "Not logged in"}'),
+            const SizedBox(height: 8),
+            Text('Status: ${supabase.isLoggedIn ? "Terhubung" : "Offline"}'),
+            const SizedBox(height: 8),
+            Text('Local Kajian: ${kajianController.kajianList.length}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Tutup'),
+          ),
+          if (supabase.isLoggedIn) ...[
+            TextButton(
+              onPressed: () {
+                _syncToCloud(kajianController.kajianList);
+                Navigator.pop(context);
+              },
+              child: const Text('Sync ke Cloud'),
+            ),
+            TextButton(
+              onPressed: () {
+                _importFromCloud();
+                Navigator.pop(context);
+              },
+              child: const Text('Import dari Cloud'),
+            ),
+            TextButton(
+              onPressed: () {
+                supabase.signOut();
+                Navigator.pop(context);
+              },
+              child: const Text('Logout'),
+            ),
+          ] else ...[
+            TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Tutup dialog dulu
+              Get.to(() => const AuthScreen()); // Buka auth screen
+            },
+            child: const Text('Login/Daftar'),
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
+  
+
+  Future<void> _syncToCloud(List<KajianHiveModel> kajianList) async {
+    try {
+      final supabase = Get.find<SupabaseService>();
+      await supabase.syncKajianToCloud(kajianList);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('✅ ${kajianList.length} kajian tersinkronisasi')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('❌ Sync gagal: $e')),
+      );
+    }
+  }
+
+  Future<void> _importFromCloud() async {
+    try {
+      final supabase = Get.find<SupabaseService>();
+      final kajianController = Get.find<KajianHiveController>();
+      
+      final cloudKajian = await supabase.getKajianFromCloud();
+      
+      for (final kajian in cloudKajian) {
+        // Cek duplikat
+        final exists = kajianController.kajianList.any((k) => k.id == kajian.id);
+        if (!exists) {
+          await kajianController.addKajian(kajian);
+        }
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('✅ ${cloudKajian.length} kajian diimport')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('❌ Import gagal: $e')),
+      );
+    }
+  }
+Future<void> _testPerformance() async {
+  final stopwatch = Stopwatch();
+  
+  // Test Hive Write
+  stopwatch.start();
+  final hiveService = Get.find<HiveKajianService>();
+  for (int i = 0; i < 10; i++) {
+    await hiveService.addKajian(KajianHiveModel(
+      id: 'test_$i',
+      title: 'Test Kajian $i',
+      description: 'Deskripsi test',
+      date: DateTime.now(),
+      pemateri: 'Test Ustadz',
+      lokasi: 'Test Masjid',
+    ));
+  }
+  stopwatch.stop();
+  final hiveWriteTime = stopwatch.elapsedMilliseconds;
+  
+  // Test Supabase Write
+  stopwatch.reset();
+  stopwatch.start();
+  final supabase = Get.find<SupabaseService>();
+  if (supabase.isLoggedIn) {
+    final testData = List.generate(5, (i) => KajianHiveModel(
+      id: 'cloud_test_$i',
+      title: 'Cloud Test $i',
+      description: 'Cloud description',
+      date: DateTime.now(),
+      pemateri: 'Cloud Ustadz',
+      lokasi: 'Cloud Masjid',
+    ));
+    await supabase.syncKajianToCloud(testData);
+  }
+  stopwatch.stop();
+  final supabaseWriteTime = stopwatch.elapsedMilliseconds;
+  
+  // Show results
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Performance Test'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Hive Write (10 items): ${hiveWriteTime}ms'),
+          Text('Supabase Write (5 items): ${supabaseWriteTime}ms'),
+        ],
+      ),
+    ),
+  );
+}
+
+void _testOfflineMode() {
+  final supabase = Get.find<SupabaseService>();
+  final kajianController = Get.find<KajianHiveController>();
+  
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Offline Mode Test'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.storage),
+            title: const Text('Hive (Local)'),
+            subtitle: Text('${kajianController.kajianList.length} kajian tersimpan'),
+          ),
+          ListTile(
+            leading: Icon(
+              supabase.isLoggedIn ? Icons.cloud_done : Icons.cloud_off,
+              color: supabase.isLoggedIn ? Colors.green : Colors.grey,
+            ),
+            title: const Text('Supabase (Cloud)'),
+            subtitle: Text(supabase.isLoggedIn ? 'Terhubung' : 'Offline'),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Matikan internet untuk test:\n- Hive tetap bisa CRUD\n- Supabase akan error',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+Widget _buildSupabaseSection() {
+  final supabase = Get.find<SupabaseService>();
+  final kajianController = Get.find<KajianHiveController>();
+  
+  return Card(
+    elevation: 4,
+    margin: const EdgeInsets.symmetric(vertical: 16),
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.cloud_sync,
+                color: Colors.blue.shade700,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Cloud Storage (Supabase)',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // Status Login
+          Row(
+            children: [
+              Icon(
+                supabase.isLoggedIn ? Icons.check_circle : Icons.cancel,
+                color: supabase.isLoggedIn ? Colors.green : Colors.red,
+                size: 16,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                supabase.isLoggedIn 
+                  ? 'Terhubung: ${supabase.currentUser?.email ?? "No email"}'
+                  : 'Belum login',
+                style: TextStyle(
+                  color: supabase.isLoggedIn ? Colors.green : Colors.red,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          
+          // Info Local vs Cloud
+          Text('Local: ${kajianController.kajianList.length} kajian'),
+          const SizedBox(height: 16),
+          
+          // Tombol Aksi
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _showSupabaseDialog,
+                  icon: const Icon(Icons.cloud),
+                  label: const Text('Kelola Cloud'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade500,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (supabase.isLoggedIn) ...[
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _syncToCloud(kajianController.kajianList),
+                    icon: const Icon(Icons.upload),
+                    label: const Text('Sync'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade500,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ] else ...[
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Get.to(() => const AuthScreen());
+                    },
+                    icon: const Icon(Icons.login),
+                    label: const Text('Login/Daftar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade500,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+  // ===== EXISTING METHODS =====
   Future<void> _loadSavedLocation() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -99,7 +393,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         _selectedLibrary = prefs.getString('saved_library') ?? 'http';
       });
       
-      // Auto-fetch prayer times jika lokasi sudah tersimpan
       if (_selectedCity != null && _selectedCountry != null) {
         if (_selectedLibrary == 'http') {
           _fetchPrayerTimesHTTP(_selectedCity!, _selectedCountry!);
@@ -114,7 +407,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
-  // Save location ke Shared Preferences
   Future<void> _saveLocation(String city, String country, String library) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -1014,6 +1306,39 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       },
     );
   }
+  Widget _buildExperimentSection() {
+  return Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          const Text(
+            'Modul 4 - Experiments',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _testPerformance,
+                  child: const Text('Test Performance'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _testOfflineMode,
+                  child: const Text('Test Offline'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -1024,32 +1349,33 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         backgroundColor: Colors.blue.shade500,
         foregroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.storage),
-            onPressed: _testHive,
-            tooltip: 'Test Hive',
-          ),
-          Obx(() => IconButton(
-            icon: Icon(
-              Get.find<ThemeService>().isDarkMode.value 
-                  ? Icons.brightness_7
-                  : Icons.brightness_4,
-            ),
-            onPressed: _toggleTheme,
-            tooltip: 'Toggle Theme',
-          )),
-          IconButton(
-            icon: const Icon(Icons.speed),
-            onPressed: _showPerformanceResults,
-            tooltip: 'Lihat Hasil Performa',
-          ),
-          IconButton(
-            icon: const Icon(Icons.location_on),
-            onPressed: _showLocationModal,
-            tooltip: 'Ubah Lokasi',
-          ),
-        ],
+    actions: [
+  IconButton(
+    icon: const Icon(Icons.cloud), // ← ICON TETAP
+    onPressed: _showSupabaseDialog,
+    tooltip: 'Cloud Storage',
+  ),
+  IconButton(
+    icon: const Icon(Icons.storage),
+    onPressed: _testHive,
+    tooltip: 'Test Hive',
+  ),
+  IconButton(
+    icon: const Icon(Icons.brightness_6), // ← ICON TETAP
+    onPressed: _toggleTheme,
+    tooltip: 'Toggle Theme',
+  ),
+  IconButton(
+    icon: const Icon(Icons.speed),
+    onPressed: _showPerformanceResults,
+    tooltip: 'Lihat Hasil Performa',
+  ),
+  IconButton(
+    icon: const Icon(Icons.location_on),
+    onPressed: _showLocationModal,
+    tooltip: 'Ubah Lokasi',
+  ),
+],
       ),
       body: _isLoading
           ? const Center(
@@ -1069,6 +1395,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 children: [
                   if (_selectedCity != null && _selectedCountry != null) _buildLocationCard(),
                   const SizedBox(height: 24),
+                    _buildSupabaseSection(),
+            const SizedBox(height: 16),
                   if (_prayerTimes.isNotEmpty) _buildPrayerTimeGrid(),
                   if (_prayerTimes.isEmpty && !_isLoading) ...[
                     Center(
@@ -1093,6 +1421,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   const SizedBox(height: 24),
                   _buildAnimationButton(),
                   const SizedBox(height: 16),
+                  _buildExperimentSection(),
+                  const SizedBox(height: 16),
+                  
+                  
                 ],
               ),
             ),
